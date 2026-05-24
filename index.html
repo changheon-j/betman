@@ -38,6 +38,29 @@
       background: var(--panel);
     }
 
+    .header-inner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .auth-panel {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 240px;
+    }
+
+    .auth-status {
+      width: 100%;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
     .wrap {
       width: min(1180px, calc(100% - 32px));
       margin: 0 auto;
@@ -325,14 +348,32 @@
       .row {
         grid-template-columns: 1fr;
       }
+
+      .header-inner,
+      .auth-panel {
+        display: grid;
+        justify-items: start;
+      }
+
+      .auth-status {
+        text-align: left;
+      }
     }
   </style>
 </head>
 <body>
   <header>
-    <div class="wrap">
-      <h1>프로토 베팅 기록장</h1>
-      <p class="subtitle">프로토 승부식 회차와 경기 기준으로 내 베팅 결과, 손익, ROI를 기록합니다.</p>
+    <div class="wrap header-inner">
+      <div>
+        <h1>프로토 베팅 기록장</h1>
+        <p class="subtitle">프로토 승부식 회차와 경기 기준으로 내 베팅 결과, 손익, ROI를 기록합니다.</p>
+      </div>
+      <div class="auth-panel">
+        <button id="signIn" type="button">Google 로그인</button>
+        <button class="secondary" id="syncLocal" type="button" hidden>이 기기 기록 업로드</button>
+        <button class="secondary" id="signOut" type="button" hidden>로그아웃</button>
+        <div class="auth-status" id="authStatus">로그인하면 기록이 여러 기기에서 공유됩니다.</div>
+      </div>
     </div>
   </header>
 
@@ -461,11 +502,46 @@
     </div>
   </main>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      signInWithPopup,
+      signOut as firebaseSignOut
+    } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import {
+      collection,
+      deleteDoc,
+      doc,
+      getDocs,
+      getFirestore,
+      onSnapshot,
+      query,
+      serverTimestamp,
+      setDoc,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
     const STORAGE_KEY = "bet-tracker-records-v2";
     const LEGACY_STORAGE_KEY = "bet-tracker-records-v1";
     const ROUNDS_STORAGE_KEY = "bet-tracker-proto-rounds-v1";
     const API_URL_STORAGE_KEY = "bet-tracker-api-url-v1";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCG81THeQaf07odeLKK6X_04kGDroTJH6o",
+      authDomain: "betman-2c3ff.firebaseapp.com",
+      projectId: "betman-2c3ff",
+      storageBucket: "betman-2c3ff.firebasestorage.app",
+      messagingSenderId: "474670161778",
+      appId: "1:474670161778:web:00693ea416b5514b9f47eb"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    const googleProvider = new GoogleAuthProvider();
 
     const DEFAULT_PROTO_ROUNDS = [
       {
@@ -563,8 +639,14 @@
     const jsonFile = document.querySelector("#jsonFile");
     const sourceStatus = document.querySelector("#sourceStatus");
     const restoreSample = document.querySelector("#restoreSample");
+    const signIn = document.querySelector("#signIn");
+    const signOut = document.querySelector("#signOut");
+    const syncLocal = document.querySelector("#syncLocal");
+    const authStatus = document.querySelector("#authStatus");
 
     let bets = loadBets();
+    let currentUser = null;
+    let unsubscribeBets = null;
     apiUrl.value = localStorage.getItem(API_URL_STORAGE_KEY) || "";
 
     roundSelect.addEventListener("change", () => {
@@ -573,14 +655,17 @@
     });
     matchSelect.addEventListener("change", renderMatchPreview);
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const round = getSelectedRound();
       const match = getSelectedMatch();
+      const now = Date.now();
 
       const bet = {
         id: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
         roundId: round.id,
         roundLabel: round.label,
         matchId: match.id,
@@ -596,32 +681,24 @@
         result: "pending"
       };
 
-      bets = [bet, ...bets];
-      saveBets();
+      await addBet(bet);
       form.reset();
       populateRounds();
       render();
     });
 
-    rows.addEventListener("click", (event) => {
+    rows.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-delete]");
       if (!button) return;
 
-      bets = bets.filter((bet) => bet.id !== button.dataset.delete);
-      saveBets();
-      render();
+      await deleteBet(button.dataset.delete);
     });
 
-    rows.addEventListener("change", (event) => {
+    rows.addEventListener("change", async (event) => {
       const select = event.target.closest("select[data-result]");
       if (!select) return;
 
-      bets = bets.map((bet) => {
-        if (bet.id !== select.dataset.result) return bet;
-        return { ...bet, result: select.value };
-      });
-      saveBets();
-      render();
+      await updateBetResult(select.dataset.result, select.value);
     });
 
     search.addEventListener("input", render);
@@ -631,6 +708,10 @@
     loadApi.addEventListener("click", loadRoundsFromApi);
     jsonFile.addEventListener("change", loadRoundsFromFile);
     restoreSample.addEventListener("click", restoreSampleRounds);
+    signIn.addEventListener("click", signInWithGoogle);
+    signOut.addEventListener("click", signOutUser);
+    syncLocal.addEventListener("click", uploadLocalBets);
+    onAuthStateChanged(auth, handleAuthChange);
 
     function loadBets() {
       try {
@@ -673,6 +754,180 @@
 
     function saveBets() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+    }
+
+    function saveLocalBets() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+      updateSyncButton();
+    }
+
+    async function signInWithGoogle() {
+      try {
+        authStatus.textContent = "Google 로그인 창을 여는 중입니다.";
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        authStatus.textContent = `로그인하지 못했습니다. ${error.message}`;
+      }
+    }
+
+    async function signOutUser() {
+      try {
+        await firebaseSignOut(auth);
+      } catch (error) {
+        authStatus.textContent = `로그아웃하지 못했습니다. ${error.message}`;
+      }
+    }
+
+    function handleAuthChange(user) {
+      currentUser = user;
+      if (unsubscribeBets) {
+        unsubscribeBets();
+        unsubscribeBets = null;
+      }
+
+      signIn.hidden = !!user;
+      signOut.hidden = !user;
+      updateSyncButton();
+
+      if (!user) {
+        bets = loadBets();
+        authStatus.textContent = "로그인하면 기록이 여러 기기에서 공유됩니다.";
+        render();
+        return;
+      }
+
+      authStatus.textContent = `${user.displayName || user.email || "사용자"} 계정으로 동기화 중입니다.`;
+      listenToCloudBets(user.uid);
+    }
+
+    function userBetsCollection(uid = currentUser?.uid) {
+      return collection(db, "users", uid, "bets");
+    }
+
+    function userBetDocument(id) {
+      return doc(db, "users", currentUser.uid, "bets", id);
+    }
+
+    function listenToCloudBets(uid) {
+      unsubscribeBets = onSnapshot(query(userBetsCollection(uid)), (snapshot) => {
+        bets = snapshot.docs
+          .map((betDoc) => sanitizeBet({ id: betDoc.id, ...betDoc.data() }))
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        authStatus.textContent = `${currentUser.displayName || currentUser.email || "사용자"} 계정에 ${bets.length}개 기록이 동기화됐습니다.`;
+        render();
+      }, (error) => {
+        authStatus.textContent = `동기화 오류: ${error.message}`;
+      });
+    }
+
+    async function addBet(bet) {
+      if (currentUser) {
+        await setDoc(userBetDocument(bet.id), {
+          ...bet,
+          createdAt: bet.createdAt || Date.now(),
+          updatedAt: serverTimestamp()
+        });
+        return;
+      }
+
+      bets = [bet, ...bets];
+      saveLocalBets();
+      render();
+    }
+
+    async function deleteBet(id) {
+      if (currentUser) {
+        await deleteDoc(userBetDocument(id));
+        return;
+      }
+
+      bets = bets.filter((bet) => bet.id !== id);
+      saveLocalBets();
+      render();
+    }
+
+    async function updateBetResult(id, result) {
+      if (currentUser) {
+        await updateDoc(userBetDocument(id), {
+          result,
+          updatedAt: serverTimestamp()
+        });
+        return;
+      }
+
+      bets = bets.map((bet) => (
+        bet.id === id ? { ...bet, result, updatedAt: Date.now() } : bet
+      ));
+      saveLocalBets();
+      render();
+    }
+
+    async function uploadLocalBets() {
+      if (!currentUser) return;
+
+      const localBets = loadBets();
+      if (!localBets.length) {
+        authStatus.textContent = "업로드할 이 기기 기록이 없습니다.";
+        updateSyncButton();
+        return;
+      }
+
+      syncLocal.disabled = true;
+      authStatus.textContent = "이 기기 기록을 Firebase에 업로드하는 중입니다.";
+
+      try {
+        const existing = await getDocs(userBetsCollection());
+        const existingIds = new Set(existing.docs.map((betDoc) => betDoc.id));
+        const uploads = localBets
+          .filter((bet) => !existingIds.has(bet.id))
+          .map((bet) => setDoc(userBetDocument(bet.id), {
+            ...sanitizeBet(bet),
+            createdAt: bet.createdAt || Date.now(),
+            updatedAt: serverTimestamp()
+          }));
+
+        await Promise.all(uploads);
+        localStorage.removeItem(STORAGE_KEY);
+        authStatus.textContent = `${uploads.length}개 로컬 기록을 업로드했습니다.`;
+      } catch (error) {
+        authStatus.textContent = `업로드하지 못했습니다. ${error.message}`;
+      } finally {
+        syncLocal.disabled = false;
+        updateSyncButton();
+      }
+    }
+
+    function updateSyncButton() {
+      const localCount = loadBets().length;
+      syncLocal.hidden = !currentUser || !localCount;
+    }
+
+    function sanitizeBet(bet) {
+      return {
+        id: String(bet.id || crypto.randomUUID()),
+        createdAt: normalizeMillis(bet.createdAt),
+        updatedAt: normalizeMillis(bet.updatedAt),
+        roundId: String(bet.roundId || ""),
+        roundLabel: String(bet.roundLabel || ""),
+        matchId: String(bet.matchId || ""),
+        sport: String(bet.sport || ""),
+        league: String(bet.league || ""),
+        kickoff: String(bet.kickoff || ""),
+        home: String(bet.home || ""),
+        away: String(bet.away || ""),
+        market: String(bet.market || ""),
+        pick: String(bet.pick || ""),
+        odds: Number(bet.odds) || 0,
+        stake: Number(bet.stake) || 0,
+        result: bet.result || "pending"
+      };
+    }
+
+    function normalizeMillis(value) {
+      if (!value) return Date.now();
+      if (typeof value === "number") return value;
+      if (typeof value.toMillis === "function") return value.toMillis();
+      return Number(value) || Date.now();
     }
 
     function saveRounds(rounds) {
