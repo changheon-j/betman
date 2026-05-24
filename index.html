@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>프로토 베팅 기록장</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1d2433;
+      --muted: #687385;
+      --line: #dfe5ee;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --good: #047857;
+      --bad: #b91c1c;
+      --warn: #b45309;
+      --shadow: 0 10px 30px rgba(29, 36, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 28px 20px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 36px);
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    main {
+      padding: 24px 0 42px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat,
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat {
+      padding: 16px;
+      min-height: 96px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .stat strong {
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    form {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 11px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+      min-height: 42px;
+    }
+
+    input:focus,
+    select:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.18);
+      border-color: var(--accent);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .match-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #f8fafc;
+      display: grid;
+      gap: 6px;
+    }
+
+    .source-panel {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source-actions {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .source-actions label {
+      min-width: 0;
+    }
+
+    .file-trigger {
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 13px;
+      min-height: 42px;
+      background: #eef2f7;
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .file-trigger input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .source-status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .match-card strong {
+      font-size: 15px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 13px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      min-height: 42px;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+    }
+
+    button.secondary {
+      background: #eef2f7;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    button.secondary:hover {
+      background: #e5ebf3;
+    }
+
+    button.danger {
+      background: #fee2e2;
+      color: var(--bad);
+      border: 1px solid #fecaca;
+      padding: 7px 9px;
+      min-height: 34px;
+    }
+
+    button.danger:hover {
+      background: #fecaca;
+    }
+
+    .toolbar {
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr 170px 130px;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .money,
+    .number {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .settle-select {
+      min-width: 94px;
+      padding: 7px 9px;
+      min-height: 34px;
+    }
+
+    .positive {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .negative {
+      color: var(--bad);
+      font-weight: 700;
+    }
+
+    .empty {
+      padding: 26px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .stats,
+      .grid,
+      .toolbar,
+      .source-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>프로토 베팅 기록장</h1>
+      <p class="subtitle">프로토 승부식 회차와 경기 기준으로 내 베팅 결과, 손익, ROI를 기록합니다.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="stats" aria-label="요약 통계">
+      <div class="stat">
+        <span>총 베팅 수</span>
+        <strong id="totalBets">0</strong>
+      </div>
+      <div class="stat">
+        <span>총 손익</span>
+        <strong id="totalProfit">0원</strong>
+      </div>
+      <div class="stat">
+        <span>ROI</span>
+        <strong id="roi">0%</strong>
+      </div>
+      <div class="stat">
+        <span>승률</span>
+        <strong id="winRate">0%</strong>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section aria-labelledby="formTitle">
+        <div class="panel-head">
+          <h2 id="formTitle">기록 추가</h2>
+        </div>
+
+        <div class="source-panel">
+          <div class="source-actions">
+            <label>
+              경기 정보 API URL
+              <input id="apiUrl" type="url" placeholder="https://example.com/proto-rounds.json">
+            </label>
+            <button class="secondary" id="loadApi" type="button">불러오기</button>
+            <label class="file-trigger">
+              JSON 가져오기
+              <input id="jsonFile" type="file" accept="application/json,.json">
+            </label>
+          </div>
+          <div class="source-status" id="sourceStatus" aria-live="polite"></div>
+          <button class="secondary" id="restoreSample" type="button">샘플 경기로 복구</button>
+        </div>
+
+        <form id="betForm">
+          <label>
+            프로토 승부식 회차
+            <select id="round" required></select>
+          </label>
+
+          <label>
+            대상 경기
+            <select id="match" required></select>
+          </label>
+
+          <div class="match-card" id="matchPreview" aria-live="polite"></div>
+
+          <div class="row">
+            <label>
+              베팅 유형
+              <select id="market" required></select>
+            </label>
+
+            <label>
+              픽
+              <input id="pick" type="text" placeholder="예: 홈 승, 언더, 원정 핸디승" required>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              배당률
+              <input id="odds" type="number" step="0.01" min="1" placeholder="1.85" required>
+            </label>
+
+            <label>
+              베팅 금액
+              <input id="stake" type="number" step="100" min="0" placeholder="10000" required>
+            </label>
+          </div>
+
+          <button type="submit">기록 저장</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="listTitle">
+        <div class="panel-head">
+          <h2 id="listTitle">기록 목록</h2>
+          <button class="secondary" id="exportCsv" type="button">CSV 내보내기</button>
+        </div>
+
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="회차, 리그, 팀, 픽 검색">
+          <select id="roundFilter">
+            <option value="all">전체 회차</option>
+          </select>
+          <select id="resultFilter">
+            <option value="all">전체 정산</option>
+            <option value="pending">대기</option>
+            <option value="win">적중</option>
+            <option value="loss">실패</option>
+            <option value="push">푸시</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>회차</th>
+                <th>경기</th>
+                <th>베팅</th>
+                <th class="number">배당</th>
+                <th class="money">금액</th>
+                <th>정산</th>
+                <th class="money">손익</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="betRows"></tbody>
+          </table>
+          <div class="empty" id="emptyState">아직 기록이 없습니다. 회차와 경기를 선택해 첫 기록을 추가해보세요.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "bet-tracker-records-v2";
+    const LEGACY_STORAGE_KEY = "bet-tracker-records-v1";
+    const ROUNDS_STORAGE_KEY = "bet-tracker-proto-rounds-v1";
+    const API_URL_STORAGE_KEY = "bet-tracker-api-url-v1";
+
+    const DEFAULT_PROTO_ROUNDS = [
+      {
+        id: "2026-065",
+        label: "프로토 승부식 65회차",
+        period: "2026-05-25 ~ 2026-05-27",
+        matches: [
+          {
+            id: "2026-065-001",
+            sport: "축구",
+            league: "K리그1",
+            kickoff: "2026-05-27 19:30",
+            home: "FC서울",
+            away: "전북현대",
+            markets: ["일반", "핸디캡", "언더/오버"]
+          },
+          {
+            id: "2026-065-002",
+            sport: "야구",
+            league: "KBO",
+            kickoff: "2026-05-27 18:30",
+            home: "두산",
+            away: "LG",
+            markets: ["일반", "핸디캡", "언더/오버"]
+          },
+          {
+            id: "2026-065-003",
+            sport: "농구",
+            league: "NBA",
+            kickoff: "2026-05-28 10:00",
+            home: "댈러스",
+            away: "피닉스",
+            markets: ["일반", "핸디캡", "언더/오버", "SUM"]
+          }
+        ]
+      },
+      {
+        id: "2026-066",
+        label: "프로토 승부식 66회차",
+        period: "2026-05-28 ~ 2026-05-30",
+        matches: [
+          {
+            id: "2026-066-001",
+            sport: "축구",
+            league: "프리미어리그",
+            kickoff: "2026-05-30 23:00",
+            home: "아스널",
+            away: "첼시",
+            markets: ["일반", "핸디캡", "언더/오버"]
+          },
+          {
+            id: "2026-066-002",
+            sport: "야구",
+            league: "MLB",
+            kickoff: "2026-05-31 08:10",
+            home: "뉴욕M",
+            away: "애틀랜타",
+            markets: ["일반", "핸디캡", "언더/오버"]
+          },
+          {
+            id: "2026-066-003",
+            sport: "배구",
+            league: "VNL",
+            kickoff: "2026-05-31 20:00",
+            home: "대한민국",
+            away: "일본",
+            markets: ["일반", "핸디캡", "언더/오버"]
+          }
+        ]
+      }
+    ];
+
+    let protoRounds = loadRounds();
+
+    const labels = {
+      win: "적중",
+      loss: "실패",
+      push: "푸시",
+      pending: "대기"
+    };
+
+    const form = document.querySelector("#betForm");
+    const rows = document.querySelector("#betRows");
+    const emptyState = document.querySelector("#emptyState");
+    const search = document.querySelector("#search");
+    const roundSelect = document.querySelector("#round");
+    const matchSelect = document.querySelector("#match");
+    const marketSelect = document.querySelector("#market");
+    const roundFilter = document.querySelector("#roundFilter");
+    const resultFilter = document.querySelector("#resultFilter");
+    const exportCsv = document.querySelector("#exportCsv");
+    const matchPreview = document.querySelector("#matchPreview");
+    const apiUrl = document.querySelector("#apiUrl");
+    const loadApi = document.querySelector("#loadApi");
+    const jsonFile = document.querySelector("#jsonFile");
+    const sourceStatus = document.querySelector("#sourceStatus");
+    const restoreSample = document.querySelector("#restoreSample");
+
+    let bets = loadBets();
+    apiUrl.value = localStorage.getItem(API_URL_STORAGE_KEY) || "";
+
+    roundSelect.addEventListener("change", () => {
+      populateMatches();
+      renderMatchPreview();
+    });
+    matchSelect.addEventListener("change", renderMatchPreview);
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const round = getSelectedRound();
+      const match = getSelectedMatch();
+
+      const bet = {
+        id: crypto.randomUUID(),
+        roundId: round.id,
+        roundLabel: round.label,
+        matchId: match.id,
+        sport: match.sport,
+        league: match.league,
+        kickoff: match.kickoff,
+        home: match.home,
+        away: match.away,
+        market: marketSelect.value,
+        pick: document.querySelector("#pick").value.trim(),
+        odds: Number(document.querySelector("#odds").value),
+        stake: Number(document.querySelector("#stake").value),
+        result: "pending"
+      };
+
+      bets = [bet, ...bets];
+      saveBets();
+      form.reset();
+      populateRounds();
+      render();
+    });
+
+    rows.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-delete]");
+      if (!button) return;
+
+      bets = bets.filter((bet) => bet.id !== button.dataset.delete);
+      saveBets();
+      render();
+    });
+
+    rows.addEventListener("change", (event) => {
+      const select = event.target.closest("select[data-result]");
+      if (!select) return;
+
+      bets = bets.map((bet) => {
+        if (bet.id !== select.dataset.result) return bet;
+        return { ...bet, result: select.value };
+      });
+      saveBets();
+      render();
+    });
+
+    search.addEventListener("input", render);
+    roundFilter.addEventListener("change", render);
+    resultFilter.addEventListener("change", render);
+    exportCsv.addEventListener("click", downloadCsv);
+    loadApi.addEventListener("click", loadRoundsFromApi);
+    jsonFile.addEventListener("change", loadRoundsFromFile);
+    restoreSample.addEventListener("click", restoreSampleRounds);
+
+    function loadBets() {
+      try {
+        const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (current) return current;
+
+        const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+        if (!legacy) return [];
+
+        return legacy.map((bet) => ({
+          id: bet.id || crypto.randomUUID(),
+          roundId: "legacy",
+          roundLabel: "기존 기록",
+          matchId: "legacy",
+          sport: bet.sport || "",
+          league: "",
+          kickoff: bet.date || "",
+          home: bet.event || "기존 경기",
+          away: "",
+          market: "기존 입력",
+          pick: bet.pick || "",
+          odds: Number(bet.odds) || 0,
+          stake: Number(bet.stake) || 0,
+          result: bet.result || "pending"
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    function loadRounds() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(ROUNDS_STORAGE_KEY));
+        const normalized = normalizeRounds(saved);
+        return normalized.length ? normalized : DEFAULT_PROTO_ROUNDS;
+      } catch {
+        return DEFAULT_PROTO_ROUNDS;
+      }
+    }
+
+    function saveBets() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+    }
+
+    function saveRounds(rounds) {
+      protoRounds = normalizeRounds(rounds);
+      if (!protoRounds.length) throw new Error("가져온 경기 정보가 비어 있습니다.");
+      localStorage.setItem(ROUNDS_STORAGE_KEY, JSON.stringify(protoRounds));
+      populateRounds();
+      render();
+      setSourceStatus(`${protoRounds.length}개 회차, ${countMatches(protoRounds)}개 경기를 적용했습니다.`);
+    }
+
+    async function loadRoundsFromApi() {
+      const url = apiUrl.value.trim();
+      if (!url) {
+        setSourceStatus("API URL을 입력해주세요.", true);
+        return;
+      }
+
+      setSourceStatus("경기 정보를 불러오는 중입니다.");
+
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        localStorage.setItem(API_URL_STORAGE_KEY, url);
+        saveRounds(data);
+      } catch (error) {
+        setSourceStatus(`불러오지 못했습니다. ${error.message}`, true);
+      }
+    }
+
+    async function loadRoundsFromFile(event) {
+      const [file] = event.target.files;
+      if (!file) return;
+
+      try {
+        const data = JSON.parse(await file.text());
+        saveRounds(data);
+        setSourceStatus(`${file.name}을 적용했습니다.`);
+      } catch (error) {
+        setSourceStatus(`JSON 파일을 읽지 못했습니다. ${error.message}`, true);
+      } finally {
+        event.target.value = "";
+      }
+    }
+
+    function restoreSampleRounds() {
+      localStorage.removeItem(ROUNDS_STORAGE_KEY);
+      protoRounds = DEFAULT_PROTO_ROUNDS;
+      populateRounds();
+      render();
+      setSourceStatus("샘플 경기 정보로 복구했습니다.");
+    }
+
+    function normalizeRounds(payload) {
+      const rounds = Array.isArray(payload) ? payload : payload?.rounds;
+      if (!Array.isArray(rounds)) return [];
+
+      return rounds.map((round, roundIndex) => {
+        const matches = Array.isArray(round.matches) ? round.matches : [];
+        return {
+          id: String(round.id || round.roundId || `round-${roundIndex + 1}`),
+          label: String(round.label || round.roundLabel || round.name || `프로토 승부식 ${roundIndex + 1}회차`),
+          period: String(round.period || round.salePeriod || round.dateRange || ""),
+          matches: matches.map((match, matchIndex) => ({
+            id: String(match.id || match.matchId || `${round.id || roundIndex + 1}-${matchIndex + 1}`),
+            sport: String(match.sport || match.sportName || ""),
+            league: String(match.league || match.leagueName || match.competition || ""),
+            kickoff: String(match.kickoff || match.startTime || match.matchTime || match.date || ""),
+            home: String(match.home || match.homeTeam || match.homeName || ""),
+            away: String(match.away || match.awayTeam || match.awayName || ""),
+            markets: normalizeMarkets(match.markets || match.marketTypes || match.odds)
+          })).filter((match) => match.home || match.away)
+        };
+      }).filter((round) => round.matches.length);
+    }
+
+    function normalizeMarkets(markets) {
+      if (!Array.isArray(markets)) return ["일반", "핸디캡", "언더/오버"];
+
+      const labels = markets.map((market) => {
+        if (typeof market === "string") return market;
+        return market.label || market.name || market.market || market.type;
+      }).filter(Boolean);
+
+      return labels.length ? [...new Set(labels.map(String))] : ["일반", "핸디캡", "언더/오버"];
+    }
+
+    function countMatches(rounds) {
+      return rounds.reduce((sum, round) => sum + round.matches.length, 0);
+    }
+
+    function setSourceStatus(message, isError = false) {
+      sourceStatus.textContent = message;
+      sourceStatus.className = `source-status${isError ? " negative" : ""}`;
+    }
+
+    function populateRounds() {
+      roundSelect.innerHTML = protoRounds.map((round) => (
+        `<option value="${round.id}">${round.label}</option>`
+      )).join("");
+
+      roundFilter.innerHTML = [
+        `<option value="all">전체 회차</option>`,
+        ...protoRounds.map((round) => `<option value="${round.id}">${round.label}</option>`),
+        bets.some((bet) => bet.roundId === "legacy") ? `<option value="legacy">기존 기록</option>` : ""
+      ].join("");
+
+      populateMatches();
+      renderMatchPreview();
+    }
+
+    function populateMatches() {
+      const round = getSelectedRound();
+      matchSelect.innerHTML = round.matches.map((match) => (
+        `<option value="${match.id}">${match.kickoff} | ${match.league} | ${match.home} vs ${match.away}</option>`
+      )).join("");
+
+      populateMarkets();
+    }
+
+    function populateMarkets() {
+      const match = getSelectedMatch();
+      marketSelect.innerHTML = match.markets.map((market) => (
+        `<option value="${market}">${market}</option>`
+      )).join("");
+    }
+
+    function renderMatchPreview() {
+      populateMarkets();
+      const round = getSelectedRound();
+      const match = getSelectedMatch();
+
+      matchPreview.innerHTML = `
+        <strong>${escapeHtml(match.home)} vs ${escapeHtml(match.away)}</strong>
+        <span class="meta">${escapeHtml(round.label)} · ${escapeHtml(round.period)}</span>
+        <span class="meta">${escapeHtml(match.sport)} · ${escapeHtml(match.league)} · ${escapeHtml(match.kickoff)}</span>
+      `;
+    }
+
+    function getSelectedRound() {
+      return protoRounds.find((round) => round.id === roundSelect.value) || protoRounds[0];
+    }
+
+    function getSelectedMatch() {
+      const round = getSelectedRound();
+      return round.matches.find((match) => match.id === matchSelect.value) || round.matches[0];
+    }
+
+    function getProfit(bet) {
+      if (bet.result === "win") return bet.stake * (bet.odds - 1);
+      if (bet.result === "loss") return -bet.stake;
+      return 0;
+    }
+
+    function formatMoney(value) {
+      return `${Math.round(value).toLocaleString("ko-KR")}원`;
+    }
+
+    function formatPercent(value) {
+      return `${value.toFixed(1)}%`;
+    }
+
+    function filteredBets() {
+      const keyword = search.value.trim().toLowerCase();
+      return bets.filter((bet) => {
+        const haystack = [
+          bet.roundLabel,
+          bet.sport,
+          bet.league,
+          bet.home,
+          bet.away,
+          bet.market,
+          bet.pick
+        ].join(" ").toLowerCase();
+
+        const matchesSearch = !keyword || haystack.includes(keyword);
+        const matchesRound = roundFilter.value === "all" || bet.roundId === roundFilter.value;
+        const matchesResult = resultFilter.value === "all" || bet.result === resultFilter.value;
+        return matchesSearch && matchesRound && matchesResult;
+      });
+    }
+
+    function render() {
+      const visibleBets = filteredBets();
+
+      rows.innerHTML = visibleBets.map((bet) => {
+        const profit = getProfit(bet);
+        const profitClass = profit > 0 ? "positive" : profit < 0 ? "negative" : "";
+        const matchText = [bet.league, `${bet.home}${bet.away ? ` vs ${bet.away}` : ""}`]
+          .filter(Boolean)
+          .join(" | ");
+
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(bet.roundLabel)}</strong>
+              <div class="meta">${escapeHtml(bet.kickoff || "")}</div>
+            </td>
+            <td>
+              ${escapeHtml(matchText)}
+              <div class="meta">${escapeHtml(bet.sport || "")}</div>
+            </td>
+            <td>
+              ${escapeHtml(bet.market)} · ${escapeHtml(bet.pick)}
+            </td>
+            <td class="number">${bet.odds.toFixed(2)}</td>
+            <td class="money">${formatMoney(bet.stake)}</td>
+            <td>
+              <select class="settle-select" data-result="${bet.id}" aria-label="정산 결과">
+                ${resultOptions(bet.result)}
+              </select>
+            </td>
+            <td class="money ${profitClass}">${formatMoney(profit)}</td>
+            <td><button class="danger" type="button" data-delete="${bet.id}">삭제</button></td>
+          </tr>
+        `;
+      }).join("");
+
+      emptyState.style.display = visibleBets.length ? "none" : "block";
+      renderStats();
+    }
+
+    function resultOptions(selected) {
+      return Object.entries(labels).map(([value, label]) => (
+        `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`
+      )).join("");
+    }
+
+    function renderStats() {
+      const settled = bets.filter((bet) => bet.result !== "pending");
+      const wins = bets.filter((bet) => bet.result === "win").length;
+      const totalStake = settled.reduce((sum, bet) => sum + bet.stake, 0);
+      const totalProfit = bets.reduce((sum, bet) => sum + getProfit(bet), 0);
+      const roi = totalStake ? (totalProfit / totalStake) * 100 : 0;
+      const winRate = settled.length ? (wins / settled.length) * 100 : 0;
+
+      document.querySelector("#totalBets").textContent = bets.length;
+      document.querySelector("#totalProfit").textContent = formatMoney(totalProfit);
+      document.querySelector("#totalProfit").className = totalProfit > 0 ? "positive" : totalProfit < 0 ? "negative" : "";
+      document.querySelector("#roi").textContent = formatPercent(roi);
+      document.querySelector("#winRate").textContent = formatPercent(winRate);
+    }
+
+    function downloadCsv() {
+      const header = ["회차", "경기일시", "종목", "리그", "홈", "원정", "베팅유형", "픽", "배당률", "베팅금액", "정산", "손익"];
+      const body = bets.map((bet) => [
+        bet.roundLabel,
+        bet.kickoff,
+        bet.sport,
+        bet.league,
+        bet.home,
+        bet.away,
+        bet.market,
+        bet.pick,
+        bet.odds,
+        bet.stake,
+        labels[bet.result],
+        Math.round(getProfit(bet))
+      ]);
+
+      const csv = [header, ...body]
+        .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "proto-bet-records.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    populateRounds();
+    render();
+  </script>
+</body>
+</html>
