@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786030687553,
+      "tag": "0000_absent_kulan_gath",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786031418147,
+      "tag": "0001_neat_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786288472686,
+      "tag": "0002_worried_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786546913225,
+      "tag": "0003_conscious_vin_gonzales",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787284566743,
+      "tag": "0004_betman_odds_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787756711515,
+      "tag": "0005_narrow_sandman",
+      "breakpoints": true
+    }
+  ]
+}

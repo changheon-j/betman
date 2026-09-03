@@ -1,0 +1,25 @@
+{
+  "round": {
+    "gmId": "G101",
+    "gmTs": "260101",
+    "sourceUrl": "https://www.betman.co.kr/closed/G101/260101",
+    "announcedAt": "2026-08-21T08:00:00.000Z"
+  },
+  "fetchedAt": "2026-08-21T09:00:00.000Z",
+  "providerFinal": true,
+  "payload": {
+    "gmId": "G101",
+    "gmTs": "260101",
+    "roundStatus": "FINAL",
+    "compSchedules": {
+      "keys": ["itemCode", "leagueName", "gameKind", "marketName", "condition", "matchSeq", "gameDate", "homeName", "awayName", "resultStatus", "homeScore", "awayScore", "result", "options"],
+      "datas": [
+        ["SC", "일본 J1리그", "일반", "축구 승무패", "-", "5345", "202608211930", "FC도쿄", "제프 유나이티드", "COMPLETED", "2", "1", "H", [{"label":"패","odds":"3.40"},{"label":"승","odds":"2.05"},{"label":"무","odds":"3.15"}]],
+        ["SC", "일본 J1리그", "일반", "축구 승무패", "-", "5346", "202608221900", "가시마 앤틀러스", "가상의 원정팀", "COMPLETED", "0", "1", "A", [{"label":"승","odds":"2.10"},{"label":"무","odds":"3.20"},{"label":"패","odds":"3.10"}]],
+        ["BS", "일본 J1리그", "일반", "축구 승무패", "-", "7001", "202608221900", "홈", "원정", "COMPLETED", "1", "0", "H", []],
+        ["SC", "프리미어리그", "일반", "축구 승무패", "-", "7002", "202608221900", "홈", "원정", "COMPLETED", "1", "0", "H", []],
+        ["SC", "K리그1", "핸디캡", "축구 승무패", "-", "7003", "202608221900", "홈", "원정", "COMPLETED", "1", "0", "H", []]
+      ]
+    }
+  }
+}
