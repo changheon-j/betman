@@ -2,26 +2,28 @@ import {
   HeadToHeadProviderError,
   parseHeadToHeadQuery,
   requestHeadToHead,
-  type HeadToHeadMatch,
   type HeadToHeadQuery,
   type HeadToHeadPayload,
 } from "../../lib/head-to-head.ts";
-
-type CachedHeadToHead = {
-  expiresAt: number;
-  fetchedAt: string;
-  matches: HeadToHeadMatch[];
-};
+import {
+  SharedCacheBusyError,
+  getOrRefreshShared,
+  type SharedCacheResult,
+  type SharedCacheStore,
+} from "../../lib/shared-api-cache.ts";
+import { getD1ApiResponseCache } from "../../../db/api-response-cache.ts";
 
 const CACHE_SECONDS = 1800;
 const CACHE_TTL_MS = CACHE_SECONDS * 1000;
-const MAX_CACHE_ENTRIES = 100;
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 
 export type HeadToHeadRouteDependencies = {
+  cacheStoreLoader?: () => Promise<SharedCacheStore>;
   apiKeyLoader?: () => Promise<string>;
   fetcher?: typeof fetch;
   now?: () => number;
-  cache?: Map<string, CachedHeadToHead>;
+  token?: () => string;
+  inFlight?: Map<string, Promise<SharedCacheResult<unknown>>>;
 };
 
 async function getApiKey(): Promise<string> {
@@ -32,32 +34,14 @@ async function getApiKey(): Promise<string> {
 }
 
 function cacheKey(query: HeadToHeadQuery): string {
-  return `${query.fixtureId}:${query.homeTeamId}:${query.awayTeamId}:${query.kickoffAt}`;
-}
-
-function responsePayload(fixtureId: number, cached: CachedHeadToHead): HeadToHeadPayload {
-  return {
-    fixtureId,
-    fetchedAt: cached.fetchedAt,
-    cacheSeconds: CACHE_SECONDS,
-    matches: cached.matches,
-  };
-}
-
-function cacheHeadToHead(cache: Map<string, CachedHeadToHead>, key: string, cached: CachedHeadToHead) {
-  cache.delete(key);
-  if (cache.size >= MAX_CACHE_ENTRIES) {
-    const oldestKey = cache.keys().next().value;
-    if (oldestKey !== undefined) cache.delete(oldestKey);
-  }
-  cache.set(key, cached);
+  return `head-to-head:v1:${query.fixtureId}:${query.homeTeamId}:${query.awayTeamId}:${query.kickoffAt}`;
 }
 
 export function createHeadToHeadGetHandler(dependencies: HeadToHeadRouteDependencies = {}) {
+  const cacheStoreLoader = dependencies.cacheStoreLoader ?? getD1ApiResponseCache;
   const apiKeyLoader = dependencies.apiKeyLoader ?? getApiKey;
   const fetcher = dependencies.fetcher ?? fetch;
   const now = dependencies.now ?? Date.now;
-  const cache = dependencies.cache ?? new Map<string, CachedHeadToHead>();
 
   return async function GET(request: Request) {
     let query: HeadToHeadQuery;
@@ -67,24 +51,34 @@ export function createHeadToHeadGetHandler(dependencies: HeadToHeadRouteDependen
       return Response.json({ error: error instanceof Error ? error.message : "Invalid head-to-head query" }, { status: 400 });
     }
 
-    const key = cacheKey(query);
-    const cached = cache.get(key);
-    if (cached && cached.expiresAt > now()) {
-      return Response.json(responsePayload(query.fixtureId, cached));
+    let store: SharedCacheStore;
+    try {
+      store = await cacheStoreLoader();
+    } catch {
+      return Response.json({ error: "Shared cache is unavailable" }, { status: 503 });
     }
 
     try {
-      const matches = await requestHeadToHead(query, await apiKeyLoader(), fetcher);
-      const requestedAt = now();
-      const nextCached = {
-        expiresAt: requestedAt + CACHE_TTL_MS,
-        fetchedAt: new Date(requestedAt).toISOString(),
-        matches,
-      };
-      cacheHeadToHead(cache, key, nextCached);
-      return Response.json(responsePayload(query.fixtureId, nextCached));
+      const result = await getOrRefreshShared<HeadToHeadPayload>({
+        key: cacheKey(query),
+        ttlMs: CACHE_TTL_MS,
+        staleTtlMs: CACHE_STALE_MS,
+        store,
+        now,
+        token: dependencies.token,
+        inFlight: dependencies.inFlight,
+        load: async () => ({
+          fixtureId: query.fixtureId,
+          fetchedAt: new Date(now()).toISOString(),
+          cacheSeconds: CACHE_SECONDS,
+          matches: await requestHeadToHead(query, await apiKeyLoader(), fetcher),
+        }),
+      });
+      return Response.json(result.value, { headers: { "X-Cache-Status": result.cacheStatus } });
     } catch (error) {
-      const status = error instanceof HeadToHeadProviderError ? error.status : 502;
+      const status = error instanceof HeadToHeadProviderError
+        ? error.status
+        : error instanceof SharedCacheBusyError ? 503 : 502;
       return Response.json({ error: "Unable to load head-to-head" }, { status });
     }
   };
