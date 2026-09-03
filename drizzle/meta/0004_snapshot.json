@@ -1,0 +1,655 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "de0e1752-27f0-42ea-acf6-4b5692f5ee91",
+  "prevId": "1635ca17-116e-47ab-ab84-566127c9a41d",
+  "tables": {
+    "betman_history_matches": {
+      "name": "betman_history_matches",
+      "columns": {
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "round_key": {
+          "name": "round_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_id": {
+          "name": "gm_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_ts": {
+          "name": "gm_ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "match_seq": {
+          "name": "match_seq",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "league_code": {
+          "name": "league_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "league_name": {
+          "name": "league_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "betman_league_name": {
+          "name": "betman_league_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kickoff_at": {
+          "name": "kickoff_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "match_date": {
+          "name": "match_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "home_team_id": {
+          "name": "home_team_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "away_team_id": {
+          "name": "away_team_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "home_team_name": {
+          "name": "home_team_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "away_team_name": {
+          "name": "away_team_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "betman_home_team": {
+          "name": "betman_home_team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "betman_away_team": {
+          "name": "betman_away_team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "home_score": {
+          "name": "home_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "away_score": {
+          "name": "away_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "home_odds": {
+          "name": "home_odds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "draw_odds": {
+          "name": "draw_odds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "away_odds": {
+          "name": "away_odds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "display_status": {
+          "name": "display_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_final": {
+          "name": "source_final",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "finalized_at": {
+          "name": "finalized_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_betman_history_match_source": {
+          "name": "uq_betman_history_match_source",
+          "columns": [
+            "gm_id",
+            "gm_ts",
+            "match_seq"
+          ],
+          "isUnique": true
+        },
+        "idx_betman_history_matches_status_date": {
+          "name": "idx_betman_history_matches_status_date",
+          "columns": [
+            "display_status",
+            "\"match_date\" desc",
+            "\"kickoff_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "idx_betman_history_matches_league_date": {
+          "name": "idx_betman_history_matches_league_date",
+          "columns": [
+            "league_code",
+            "\"match_date\" desc",
+            "\"kickoff_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "idx_betman_history_matches_home_date": {
+          "name": "idx_betman_history_matches_home_date",
+          "columns": [
+            "league_code",
+            "home_team_id",
+            "\"match_date\" desc"
+          ],
+          "isUnique": false
+        },
+        "idx_betman_history_matches_away_date": {
+          "name": "idx_betman_history_matches_away_date",
+          "columns": [
+            "league_code",
+            "away_team_id",
+            "\"match_date\" desc"
+          ],
+          "isUnique": false
+        },
+        "idx_betman_history_matches_round": {
+          "name": "idx_betman_history_matches_round",
+          "columns": [
+            "round_key"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "betman_history_matches_round_key_betman_history_rounds_round_key_fk": {
+          "name": "betman_history_matches_round_key_betman_history_rounds_round_key_fk",
+          "tableFrom": "betman_history_matches",
+          "tableTo": "betman_history_rounds",
+          "columnsFrom": [
+            "round_key"
+          ],
+          "columnsTo": [
+            "round_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_betman_history_match_league": {
+          "name": "ck_betman_history_match_league",
+          "value": "\"betman_history_matches\".\"league_code\" in ('K1', 'J1')"
+        },
+        "ck_betman_history_match_result": {
+          "name": "ck_betman_history_match_result",
+          "value": "\"betman_history_matches\".\"result\" is null or \"betman_history_matches\".\"result\" in ('H', 'D', 'A')"
+        },
+        "ck_betman_history_match_status": {
+          "name": "ck_betman_history_match_status",
+          "value": "\"betman_history_matches\".\"display_status\" in ('INCLUDED', 'CANCELLED', 'PENDING_RESULT', 'MISSING_ODDS', 'TEAM_MATCH_FAILED')"
+        }
+      }
+    },
+    "betman_history_rounds": {
+      "name": "betman_history_rounds",
+      "columns": {
+        "round_key": {
+          "name": "round_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_id": {
+          "name": "gm_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_ts": {
+          "name": "gm_ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_final": {
+          "name": "provider_final",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "event_from": {
+          "name": "event_from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "event_to": {
+          "name": "event_to",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "attempt_count": {
+          "name": "attempt_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_attempt_at": {
+          "name": "last_attempt_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_success_at": {
+          "name": "last_success_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finalized_at": {
+          "name": "finalized_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lease_expires_at": {
+          "name": "lease_expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lease_token": {
+          "name": "lease_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_betman_history_round": {
+          "name": "uq_betman_history_round",
+          "columns": [
+            "gm_id",
+            "gm_ts"
+          ],
+          "isUnique": true
+        },
+        "idx_betman_history_rounds_status_range": {
+          "name": "idx_betman_history_rounds_status_range",
+          "columns": [
+            "status",
+            "event_from",
+            "event_to"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_betman_history_round_gm": {
+          "name": "ck_betman_history_round_gm",
+          "value": "\"betman_history_rounds\".\"gm_id\" = 'G101'"
+        }
+      }
+    },
+    "betman_round_sources": {
+      "name": "betman_round_sources",
+      "columns": {
+        "slot": {
+          "name": "slot",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_id": {
+          "name": "gm_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "gm_ts": {
+          "name": "gm_ts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "market_predictions": {
+      "name": "market_predictions",
+      "columns": {
+        "prediction_key": {
+          "name": "prediction_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "match_id": {
+          "name": "match_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "match_date": {
+          "name": "match_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kickoff_time": {
+          "name": "kickoff_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "home_team": {
+          "name": "home_team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "away_team": {
+          "name": "away_team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "market_index": {
+          "name": "market_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "market_type": {
+          "name": "market_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "market_condition": {
+          "name": "market_condition",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "betman_round": {
+          "name": "betman_round",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "match_seq": {
+          "name": "match_seq",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "options_json": {
+          "name": "options_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "probability_sum": {
+          "name": "probability_sum",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "saved_at": {
+          "name": "saved_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_market_predictions_saved_at": {
+          "name": "idx_market_predictions_saved_at",
+          "columns": [
+            "saved_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "idx_betman_history_matches_status_date": {
+        "columns": {
+          "\"match_date\" desc": {
+            "isExpression": true
+          },
+          "\"kickoff_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_betman_history_matches_league_date": {
+        "columns": {
+          "\"match_date\" desc": {
+            "isExpression": true
+          },
+          "\"kickoff_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_betman_history_matches_home_date": {
+        "columns": {
+          "\"match_date\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_betman_history_matches_away_date": {
+        "columns": {
+          "\"match_date\" desc": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

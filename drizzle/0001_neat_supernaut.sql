@@ -1,0 +1,1 @@
+CREATE INDEX `idx_market_predictions_saved_at` ON `market_predictions` (`saved_at`);
