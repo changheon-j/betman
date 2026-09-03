@@ -4,7 +4,9 @@ import {
   mergeLeaguePayloads,
   type ApiFixture,
   type ApiStandingEnvelope,
+  type FulfilledLeaguePayload,
   type LeaguePayload,
+  type RejectedLeaguePayload,
 } from "../../lib/fixture-data.ts";
 import { resolveLeagueSeason, SUPPORTED_LEAGUES, type LeagueConfig } from "../../lib/leagues.ts";
 import {
@@ -76,14 +78,19 @@ async function fetchApi<T>(path: string, apiKey: string, fetcher: typeof fetch) 
 }
 
 async function loadLeague(league: LeagueConfig, apiKey: string, dates: LeagueDates, fetcher: typeof fetch): Promise<LeaguePayload> {
-  const [upcomingResponse, past, standingResponses] = await Promise.all([
-    fetchApi<ApiFixture>(`/fixtures?league=${league.id}&season=${dates.season}&from=${dates.today}&to=${dates.rangeEnd}&timezone=Asia%2FSeoul`, apiKey, fetcher),
-    dates.statsThrough >= dates.seasonStart
-      ? fetchApi<ApiFixture>(`/fixtures?league=${league.id}&season=${dates.season}&from=${dates.seasonStart}&to=${dates.statsThrough}&timezone=Asia%2FSeoul`, apiKey, fetcher)
-      : Promise.resolve([]),
-    fetchApi<ApiStandingEnvelope>(`/standings?league=${league.id}&season=${dates.season}`, apiKey, fetcher),
-  ]);
-  const upcoming = upcomingResponse.filter((item) => ["NS", "TBD"].includes(item.fixture.status.short));
+  const fixtures = await fetchApi<ApiFixture>(
+    `/fixtures?league=${league.id}&season=${dates.season}&from=${dates.seasonStart}&to=${dates.rangeEnd}&timezone=Asia%2FSeoul`,
+    apiKey,
+    fetcher,
+  );
+  const standingResponses = await fetchApi<ApiStandingEnvelope>(
+    `/standings?league=${league.id}&season=${dates.season}`,
+    apiKey,
+    fetcher,
+  );
+  const upcoming = fixtures.filter((item) => item.fixture.date.slice(0, 10) >= dates.today
+    && ["NS", "TBD"].includes(item.fixture.status.short));
+  const past = fixtures.filter((item) => item.fixture.date.slice(0, 10) <= dates.statsThrough);
   return buildLeaguePayload(league, upcoming, past, extractOfficialStandings(standingResponses));
 }
 
@@ -147,14 +154,15 @@ export function createFixturesGetHandler(dependencies: FixturesRouteDependencies
       league,
       dates: { ...resolveLeagueSeason(league, today), today, rangeEnd, statsThrough },
     }));
-    const results = await Promise.allSettled(leagueContexts.map(async ({ league, dates }) => ({
-      status: "fulfilled" as const,
-      league,
-      ...(await loadLeague(league, apiKey, dates, fetcher)),
-    })));
-    const merged = mergeLeaguePayloads(results.map((result, index) => result.status === "fulfilled"
-      ? result.value
-      : { status: "rejected" as const, league: SUPPORTED_LEAGUES[index], reason: result.reason }));
+    const results: Array<FulfilledLeaguePayload | RejectedLeaguePayload> = [];
+    for (const { league, dates } of leagueContexts) {
+      try {
+        results.push({ status: "fulfilled", league, ...(await loadLeague(league, apiKey, dates, fetcher)) });
+      } catch (reason) {
+        results.push({ status: "rejected", league, reason });
+      }
+    }
+    const merged = mergeLeaguePayloads(results);
 
           return {
       source: "API-Football",

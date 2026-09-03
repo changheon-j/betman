@@ -57,6 +57,6 @@ npm.cmd run all -- --base-url http://127.0.0.1:3000
 
 하네스는 모든 요청을 GET으로만 수행합니다. `--base-url URL`이 환경 변수보다 우선하며, 알 수 없거나 잘못된 CLI 인자는 거부합니다. `/api/odds-history`의 D1 계약도 조회하지만 `/api/odds-history/sync`, `/api/betman-odds`의 PUT 및 `/api/market-predictions`의 POST/PATCH/DELETE는 호출하지 않습니다.
 
-`/api/fixtures`는 upcoming fixtures, 조건부 past fixtures, standings만 조회합니다. 일반적인 cold 목록 조회는 K1 3회와 J1 3회, 총 6회의 API-Football 요청이며 경기별 H2H fan-out은 없습니다. H2H는 상세 경기를 명시적으로 선택한 경우에만 호출됩니다. H2H cache miss에서는 H2H, Predictions, pre-match odds가 각각 1회씩 요청됩니다. H2H는 선택 kickoff 이전에 완료된 최근 경기만 최대 10개 표시합니다. rate limit(429) 또는 공급자 오류가 나도 자동 재시도하지 않으며, 해당 상세의 맞대결 영역에만 오류가 표시됩니다.
+`/api/fixtures`는 리그별 시즌 경기와 standings를 순차 조회합니다. 시즌 경기 한 응답을 과거 통계와 예정 경기로 나누므로 일반적인 cold 목록 조회는 K1 2회와 J1 2회, 총 4회의 API-Football 요청이며 경기별 H2H fan-out은 없습니다. H2H는 상세 경기를 명시적으로 선택한 경우에만 호출됩니다. H2H cache miss에서는 H2H, Predictions, pre-match odds가 각각 1회씩 요청됩니다. H2H는 선택 kickoff 이전에 완료된 최근 경기만 최대 10개 표시합니다. rate limit(429) 또는 공급자 오류가 나도 자동 재시도하지 않으며, 해당 상세의 맞대결 영역에만 오류가 표시됩니다.
 
 자세한 제품, 제품 변화 기록, 구조, 데이터 출처, 운영 절차는 `docs/`와 `docs/PRODUCT-EVOLUTION.md`를 참조합니다. 다른 채팅이나 작업 환경에서 이어갈 때는 `docs/HANDOFF.md`부터 확인합니다.

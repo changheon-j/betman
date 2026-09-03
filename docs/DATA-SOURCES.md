@@ -13,7 +13,7 @@ GET /predictions?fixture={id}
 GET /odds?fixture={id}
 ```
 
-목록 공급자 요청은 `fixtures`와 `standings`만 사용합니다. cold 목록 조회는 K1과 J1 각각 upcoming fixtures, 조건부 past fixtures, standings의 세 요청으로 총 6회이며, 목록에서는 `fixtures/headtohead`를 요청하지 않습니다.
+목록 공급자 요청은 `fixtures`와 `standings`만 사용합니다. cold 목록 조회는 리그별 시즌 fixtures 한 응답을 과거 통계와 예정 경기로 나누고 standings를 별도 조회하므로 K1과 J1 각각 2회, 총 4회입니다. 공급자 요청은 순차 실행하며 목록에서는 `fixtures/headtohead`를 요청하지 않습니다.
 
 `GET /fixtures/headtohead?h2h={homeId}-{awayId}&last=20&timezone=Asia/Seoul`는 선택한 상세의 `/api/head-to-head`만 사용합니다. 서버는 응답에서 선택 kickoff 이전에 완료된 경기만 최신순으로 최대 10개 사용합니다. H2H cache miss에서는 H2H, Predictions, pre-match odds가 각각 한 번씩 요청됩니다.
 

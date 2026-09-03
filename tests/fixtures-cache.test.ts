@@ -21,13 +21,21 @@ function standings(leagueId: number) {
 
 function successfulProvider() {
   let calls = 0;
+  let active = 0;
+  let maxActive = 0;
+  const urls: string[] = [];
   const fetcher: typeof fetch = async (input) => {
     calls += 1;
+    active += 1;
+    maxActive = Math.max(maxActive, active);
     const url = new URL(String(input));
+    urls.push(url.toString());
     const leagueId = Number(url.searchParams.get("league"));
+    await Promise.resolve();
+    active -= 1;
     return Response.json({ errors: [], response: url.pathname.endsWith("/standings") ? standings(leagueId) : [] });
   };
-  return { fetcher, calls: () => calls };
+  return { fetcher, calls: () => calls, maxActive: () => maxActive, urls };
 }
 
 test("a fresh fixtures cache hit skips both API key loading and all provider calls", async () => {
@@ -64,7 +72,7 @@ test("a fresh fixtures cache hit skips both API key loading and all provider cal
   assert.equal(fetches, 0);
 });
 
-test("one cold fixtures refresh makes six provider calls and stores only the complete payload", async () => {
+test("one cold fixtures refresh makes four sequential provider calls and stores only the complete payload", async () => {
   const store = new MemorySharedCache();
   const provider = successfulProvider();
   let keyLoads = 0;
@@ -83,7 +91,15 @@ test("one cold fixtures refresh makes six provider calls and stores only the com
   assert.equal(response.headers.get("X-Cache-Status"), "refreshed");
   assert.deepEqual(payload.leagueErrors, {});
   assert.deepEqual(Object.keys(payload.standingsByLeague), ["K1", "J1"]);
-  assert.equal(provider.calls(), 6);
+  assert.equal(provider.calls(), 4);
+  assert.equal(provider.maxActive(), 1);
+  const fixtureUrls = provider.urls.filter((value) => new URL(value).pathname.endsWith("/fixtures"));
+  assert.equal(fixtureUrls.length, 2);
+  assert.deepEqual(fixtureUrls.map((value) => {
+    const url = new URL(value);
+    return [url.searchParams.get("league"), url.searchParams.get("from")];
+  }), [["292", "2026-01-01"], ["98", "2026-07-01"]]);
+  assert.ok(fixtureUrls.every((value) => new URL(value).searchParams.get("to") === "2026-09-17"));
   assert.equal(keyLoads, 1);
   assert.equal(store.writes, 1);
 });
@@ -111,7 +127,7 @@ test("a partial fixtures result stays visible but is never written to shared cac
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("X-Cache-Status"), "uncached");
   assert.match(payload.leagueErrors.J1, /rateLimit/);
-  assert.equal(calls, 6);
+  assert.equal(calls, 3);
   assert.equal(store.writes, 0);
   assert.equal(store.entries.get("fixtures:v1:2026-09-03")?.payloadJson, null);
 });
