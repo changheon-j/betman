@@ -3,23 +3,24 @@ import {
   parseFixtureId,
   type PreMatchOddsPayload,
 } from "../../lib/pre-match-odds.ts";
+import {
+  SharedCacheBusyError,
+  SharedCacheStorageError,
+  getOrRefreshShared,
+  type SharedCacheResult,
+  type SharedCacheStore,
+} from "../../lib/shared-api-cache.ts";
+import { getD1ApiResponseCache } from "../../../db/api-response-cache.ts";
 
 type ApiOddsResponse = {
   errors?: Record<string, string> | string[];
   response?: unknown[];
 };
 
-type CachedOdds = {
-  expiresAt: number;
-  payload: PreMatchOddsPayload;
-  fetchedAt: string;
-};
-
 const API_BASE = "https://v3.football.api-sports.io";
 const CACHE_SECONDS = 1800;
 const CACHE_TTL_MS = CACHE_SECONDS * 1000;
-const MAX_CACHE_ENTRIES = 100;
-const oddsCache = new Map<number, CachedOdds>();
+const CACHE_STALE_MS = 2 * 60 * 60 * 1000;
 
 async function getApiKey() {
   const { env } = await import("cloudflare:workers");
@@ -32,44 +33,66 @@ function hasErrors(errors: ApiOddsResponse["errors"]) {
   return Boolean(errors && (Array.isArray(errors) ? errors.length : Object.keys(errors).length));
 }
 
-function responsePayload(cached: CachedOdds) {
-  return { ...cached.payload, fetchedAt: cached.fetchedAt, cacheSeconds: CACHE_SECONDS };
-}
+type PreMatchOddsResponse = PreMatchOddsPayload & { fetchedAt: string; cacheSeconds: number };
 
-function cacheOdds(fixtureId: number, cached: CachedOdds) {
-  if (!oddsCache.has(fixtureId) && oddsCache.size >= MAX_CACHE_ENTRIES) {
-    const oldestFixtureId = oddsCache.keys().next().value;
-    if (oldestFixtureId !== undefined) oddsCache.delete(oldestFixtureId);
-  }
-  oddsCache.set(fixtureId, cached);
-}
+export type PreMatchOddsRouteDependencies = {
+  cacheStoreLoader?: () => Promise<SharedCacheStore>;
+  apiKeyLoader?: () => Promise<string>;
+  fetcher?: typeof fetch;
+  now?: () => number;
+  token?: () => string;
+  inFlight?: Map<string, Promise<SharedCacheResult<unknown>>>;
+};
 
-export async function GET(request: Request) {
-  let fixtureId: number;
-  try {
-    fixtureId = parseFixtureId(new URL(request.url).searchParams.get("fixture"));
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Invalid fixture" }, { status: 400 });
-  }
+export function createPreMatchOddsGetHandler(dependencies: PreMatchOddsRouteDependencies = {}) {
+  const cacheStoreLoader = dependencies.cacheStoreLoader ?? getD1ApiResponseCache;
+  const apiKeyLoader = dependencies.apiKeyLoader ?? getApiKey;
+  const fetcher = dependencies.fetcher ?? fetch;
+  const now = dependencies.now ?? Date.now;
 
-  const cached = oddsCache.get(fixtureId);
-  if (cached && cached.expiresAt > Date.now()) return Response.json(responsePayload(cached));
+  return async function GET(request: Request) {
+    let fixtureId: number;
+    try {
+      fixtureId = parseFixtureId(new URL(request.url).searchParams.get("fixture"));
+    } catch (error) {
+      return Response.json({ error: error instanceof Error ? error.message : "Invalid fixture" }, { status: 400 });
+    }
 
-  try {
-    const apiKey = await getApiKey();
-    const response = await fetch(`${API_BASE}/odds?fixture=${fixtureId}`, {
+    let store: SharedCacheStore;
+    try {
+      store = await cacheStoreLoader();
+    } catch {
+      return Response.json({ error: "Shared cache is unavailable" }, { status: 503 });
+    }
+
+    try {
+      const result = await getOrRefreshShared<PreMatchOddsResponse>({
+        key: `pre-match-odds:v1:${fixtureId}`,
+        ttlMs: CACHE_TTL_MS,
+        staleTtlMs: CACHE_STALE_MS,
+        store,
+        now,
+        token: dependencies.token,
+        inFlight: dependencies.inFlight,
+        load: async () => {
+    const apiKey = await apiKeyLoader();
+    const response = await fetcher(`${API_BASE}/odds?fixture=${fixtureId}`, {
       headers: { "x-apisports-key": apiKey },
     });
     const body = await response.json() as ApiOddsResponse;
     if (!response.ok) throw new Error(`API-Football odds request failed (${response.status})`);
     if (hasErrors(body.errors)) throw new Error(`API-Football odds response error: ${JSON.stringify(body.errors)}`);
 
-    const fetchedAt = new Date().toISOString();
     const payload = normalizePreMatchOdds(fixtureId, Array.isArray(body.response) ? body.response : []);
-    const nextCached = { expiresAt: Date.now() + CACHE_TTL_MS, payload, fetchedAt };
-    cacheOdds(fixtureId, nextCached);
-    return Response.json(responsePayload(nextCached));
+          return { ...payload, fetchedAt: new Date(now()).toISOString(), cacheSeconds: CACHE_SECONDS };
+        },
+      });
+      return Response.json(result.value, { headers: { "X-Cache-Status": result.cacheStatus } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to load pre-match odds" }, { status: 502 });
+      const status = error instanceof SharedCacheBusyError || error instanceof SharedCacheStorageError ? 503 : 502;
+      return Response.json({ error: error instanceof Error ? error.message : "Unable to load pre-match odds" }, { status });
+    }
   }
 }
+
+export const GET = createPreMatchOddsGetHandler();

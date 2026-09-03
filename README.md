@@ -19,9 +19,12 @@ API-Football Predictions는 외부 공급자가 제공하는 참고정보이며,
 
 ## 캐시와 매칭
 
-- `/api/fixtures`: 10분 메모리 캐시
-- `/api/head-to-head?fixture={id}&home={homeId}&away={awayId}&kickoff={ISO8601}`: 선택한 경기 조합별 30분 서버 메모리 캐시(최대 100개)
-- `/api/pre-match-odds?fixture={id}`: 경기 ID별 30분 메모리 캐시
+- API-Football 경로는 Worker 인스턴스가 함께 사용하는 D1 정상응답 캐시를 사용합니다. 같은 키의 동시 갱신은 로컬 in-flight 병합과 D1 15초 임대로 한 번만 실행됩니다.
+- `/api/fixtures`: 한국 날짜별 10분 fresh, 정상 조회 시점부터 60분 stale 허용
+- `/api/predictions?fixture={id}`: 경기 ID별 10분 fresh, 60분 stale 허용
+- `/api/head-to-head?fixture={id}&home={homeId}&away={awayId}&kickoff={ISO8601}`: 선택한 경기 조합별 30분 fresh, 24시간 stale 허용
+- `/api/pre-match-odds?fixture={id}`: 경기 ID별 30분 fresh, 120분 stale 허용
+- API-Football 오류와 fixtures 부분 성공은 D1에 저장하지 않습니다. 갱신 오류 시 허용 기간 안의 마지막 정상값만 사용하며 응답의 `X-Cache-Status`로 `fresh`, `refreshed`, `stale`, `uncached`를 확인할 수 있습니다.
 - `/api/betman-odds`: 회차별 10분 메모리 캐시
 - Betman 경기는 리그, 한국시간 날짜, 홈/원정 팀 ID, 시작시간 차이 15분 이내가 모두 확인될 때만 연결합니다.
 - `POST /api/odds-history/sync`는 로그인·구매 없이 익명 Betman `G101` 마감게임만 읽으며, 동기화 요청당 최대 5회차를 상세 동시 실행 최대 2개로 처리합니다. `PENDING`은 마지막 성공·시도 시각 중 더 최근 값부터 30분 뒤 재조회하고 `FINAL` 회차와 확정 행은 변경하지 않습니다.

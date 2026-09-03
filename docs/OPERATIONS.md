@@ -31,7 +31,10 @@ npm.cmd run test:betman-history-smoke
 - K1 또는 J1 하나만 실패하면 앱은 성공한 리그와 `leagueErrors`를 반환합니다. 두 리그가 모두 실패한 경우에만 `/api/fixtures`가 502입니다.
 - 2026-27 J1은 API `season=2027`입니다. 확인된 범위는 2026-08-07~2027-06-06이며 `current=true`, `standings=true`, `odds=true`입니다. `season=2026`, `odds=false`는 이미 끝난 2026-02-06~2026-06-06 동부/서부 전환 대회입니다.
 - coverage가 true여도 개별 경기의 사전 배당이 비어 있을 수 있으므로 빈 `bookmakers`와 API 오류를 구분해 대응합니다.
-- fixtures 캐시는 10분, H2H 캐시는 조합별 30분(최대 100개), pre-match odds 캐시는 30분, Betman 회차 캐시는 10분입니다. H2H 캐시는 서버 메모리 전용이므로 재시작하면 초기화됩니다. 공급자 변경을 즉시 반영해야 하면 해당 캐시 만료 뒤 다시 확인합니다.
+- API-Football의 fixtures(10분), Predictions(10분), H2H(30분), pre-match odds(30분)는 D1 공유 정상응답 캐시를 사용합니다. 공급자 변경을 즉시 반영해야 하면 해당 fresh TTL 만료 뒤 다시 확인합니다.
+- 성공 응답의 `X-Cache-Status`는 `fresh`(공유 캐시 적중), `refreshed`(이번 요청이 갱신), `stale`(갱신 장애로 마지막 정상값 사용), `uncached`(fixtures 부분 성공으로 미저장)를 뜻합니다.
+- 동일 키의 갱신 임대는 15초이며 cold follower는 최대 3초 동안 D1 결과를 기다립니다. D1 장애는 공급자 직접 호출로 우회하지 않고 503으로 반환합니다.
+- rate-limit과 공급자 오류는 캐시에 저장하지 않습니다. 기존 정상값이 stale 허용 기간 안이면 정상값을 반환하고, 그렇지 않으면 기존 429/502 오류가 표시됩니다.
 - cold fixtures 조회에서 H2H fan-out은 없어야 합니다. H2H는 사용자가 상세 경기를 선택할 때만 한 번 호출됩니다. cache miss의 rate limit은 `/api/head-to-head`가 429로 반환하며 자동 재시도하지 않습니다. UI는 해당 상세의 맞대결 영역에만 오류를 표시하고 Predictions·배당 등 다른 상세 정보는 계속 표시합니다.
 - Betman 매칭 실패는 배당 없음으로 보입니다. 별칭 수정 전에는 리그·시즌의 API 팀 ID와 실제 Betman 표기를 확인합니다. 시작시간 허용차는 15분입니다.
 - 화면에 배당이 없지만 Betman 원문에 경기가 있으면 `리그 → 날짜·시간 → 홈/원정 팀 ID` 순서로 확인합니다. 2026-08-20에는 `JEF United Chiba`의 실제 Betman 표기 `제프 유나이티드`가 누락돼 매칭되지 않았고, 확인 후 J1 팀 ID `301`의 별칭으로 추가했습니다.

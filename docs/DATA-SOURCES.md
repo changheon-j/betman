@@ -17,13 +17,13 @@ GET /odds?fixture={id}
 
 `GET /fixtures/headtohead?h2h={homeId}-{awayId}&last=20&timezone=Asia/Seoul`는 선택한 상세의 `/api/head-to-head`만 사용합니다. 서버는 응답에서 선택 kickoff 이전에 완료된 경기만 최신순으로 최대 10개 사용합니다. H2H cache miss에서는 H2H, Predictions, pre-match odds가 각각 한 번씩 요청됩니다.
 
-fixtures는 10분, H2H는 fixture ID·home ID·away ID·kickoff 조합별 30분(최대 100개), Predictions는 경기 ID별 10분, pre-match odds는 경기 ID별 30분 메모리 캐시됩니다. H2H 캐시는 DB에 저장하지 않습니다. 앱은 자동 반복 조회하지 않으며 선택한 경기만 H2H, Predictions, pre-match odds를 요청합니다. H2H 공급자 오류 또는 rate limit은 자동 재시도하지 않습니다.
+API-Football 정상 응답은 D1 공유 캐시를 사용합니다. fixtures는 한국 날짜별 10분 fresh/60분 stale, H2H는 조합별 30분 fresh/24시간 stale, Predictions는 경기 ID별 10분 fresh/60분 stale, pre-match odds는 경기 ID별 30분 fresh/120분 stale입니다. 같은 키의 갱신은 D1 임대로 한 Worker만 수행합니다. HTTP 오류, API-Football `errors`, fixtures 부분 성공은 저장하지 않으며 공급자 오류를 자동 재시도하지 않습니다.
 
 ## 사전 배당의 빈 응답
 
 API-Football 공급 범위는 리그·시즌·경기·bookmaker별로 다릅니다. 2026-08-13에 확인한 J1 `season=2027`은 `current=true`, `coverage.standings=true`, `coverage.odds=true`이며 2026-08-07부터 2027-06-06까지 한 개의 공식 20팀 순위표를 제공합니다. `season=2026`의 `coverage.odds=false`는 2026-02-06~2026-06-06에 끝난 동부/서부 전환 대회에 대한 값이며 현재 2026-27 시즌의 공급 범위를 뜻하지 않습니다. coverage가 true여도 개별 경기나 bookmaker에 배당이 없을 수 있으므로 빈 `bookmakers` 배열은 정상적인 데이터 없음으로 처리합니다.
 
-사전 배당은 경기 전 데이터이며 과거 최종 배당을 복원하는 데이터 소스가 아닙니다. 경기 상세를 명시적으로 연 경우에만 `/api/pre-match-odds`를 호출하며, DB에는 저장하지 않고 기존 30분 서버 메모리 캐시를 사용합니다. 화면은 bookmaker 선택상자를 사용하지 않고 응답에 포함된 모든 bookmaker를 응답 순서대로 표시합니다. 각 업체에서는 Match Winner만 Home / Draw / Away의 고정 순서로 소수 둘째 자리까지 표시하고, 세 값 중 하나라도 없으면 `미제공`으로 표시합니다.
+사전 배당은 경기 전 데이터이며 과거 최종 배당을 복원하는 데이터 소스가 아닙니다. 경기 상세를 명시적으로 연 경우에만 `/api/pre-match-odds`를 호출하며, 정상 응답만 30분 D1 공유 캐시에 저장합니다. 화면은 bookmaker 선택상자를 사용하지 않고 응답에 포함된 모든 bookmaker를 응답 순서대로 표시합니다. 각 업체에서는 Match Winner만 Home / Draw / Away의 고정 순서로 소수 둘째 자리까지 표시하고, 세 값 중 하나라도 없으면 `미제공`으로 표시합니다.
 
 ## Betman
 

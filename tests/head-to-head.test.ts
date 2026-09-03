@@ -12,6 +12,7 @@ import {
 } from "../app/lib/head-to-head.ts";
 import type { HeadToHeadPayload } from "../app/lib/head-to-head.ts";
 import { createHeadToHeadGetHandler, GET } from "../app/api/head-to-head/route.ts";
+import { MemorySharedCache, cachedEntry } from "./helpers/memory-shared-cache.ts";
 
 const completedFixture = (
   id: number,
@@ -223,13 +224,19 @@ const routeRequest = (
   kickoff = "2026-08-16T10:00:00+00:00",
 ) => new Request(`https://example.test/api/head-to-head?${new URLSearchParams({ fixture, home, away, kickoff })}`);
 
-test("uses the complete cache key and returns a cache hit without another provider request", async () => {
+test("uses the complete shared cache key and a fresh hit skips provider access", async () => {
+  const now = Date.parse("2026-09-03T00:00:00.000Z");
   let calls = 0;
   let keyLoads = 0;
-  const cache = new Map();
+  const store = new MemorySharedCache();
+  const payload = { fixtureId: 1, fetchedAt: "2026-09-03T00:00:00.000Z", cacheSeconds: 1800, matches: [] };
+  store.entries.set(
+    "head-to-head:v1:1:2:3:2026-08-16T10:00:00+00:00",
+    cachedEntry(payload, now + 1_000, now + 2_000),
+  );
   const handler = createHeadToHeadGetHandler({
-    cache,
-    now: () => 0,
+    cacheStoreLoader: async () => store,
+    now: () => now,
     apiKeyLoader: async () => {
       keyLoads += 1;
       return "secret";
@@ -238,110 +245,54 @@ test("uses the complete cache key and returns a cache hit without another provid
       calls += 1;
       return Response.json({ errors: [], response: [] });
     },
+    inFlight: new Map(),
   });
 
-  const first = await handler(routeRequest());
-  assert.equal(first.status, 200);
-  assert.deepEqual(await first.json(), {
-    fixtureId: 1,
-    fetchedAt: "1970-01-01T00:00:00.000Z",
-    cacheSeconds: 1800,
-    matches: [],
-  });
-  assert.equal(calls, 1);
-  assert.equal(keyLoads, 1);
-
-  assert.equal((await handler(routeRequest())).status, 200);
-  assert.equal(calls, 1);
-  assert.equal(keyLoads, 1);
-
-  await handler(routeRequest("2"));
-  await handler(routeRequest("1", "4"));
-  await handler(routeRequest("1", "2", "4"));
-  await handler(routeRequest("1", "2", "3", "2026-08-17T10:00:00+00:00"));
-  assert.equal(calls, 5);
-  assert.equal(keyLoads, 5);
+  const response = await handler(routeRequest());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("X-Cache-Status"), "fresh");
+  assert.deepEqual(await response.json(), payload);
+  assert.equal(calls, 0);
+  assert.equal(keyLoads, 0);
 });
 
-test("re-requests at the 1800-second TTL boundary", async () => {
+test("stores one normal head-to-head response in the shared cache", async () => {
   let calls = 0;
-  let now = 0;
+  const store = new MemorySharedCache();
   const handler = createHeadToHeadGetHandler({
-    cache: new Map(),
-    now: () => now,
-    apiKeyLoader: async () => "secret",
-    fetcher: async () => {
-      calls += 1;
-      return Response.json({ errors: [], response: [] });
-    },
-  });
-
-  await handler(routeRequest());
-  now = 1800 * 1000;
-  await handler(routeRequest());
-  assert.equal(calls, 2);
-});
-
-test("evicts the oldest insertion when the route cache receives its 101st key", async () => {
-  let calls = 0;
-  const cache = new Map();
-  const handler = createHeadToHeadGetHandler({
-    cache,
+    cacheStoreLoader: async () => store,
     now: () => 0,
+    token: () => "owner",
     apiKeyLoader: async () => "secret",
     fetcher: async () => {
       calls += 1;
       return Response.json({ errors: [], response: [] });
     },
+    inFlight: new Map(),
   });
 
-  for (let fixture = 1; fixture <= 101; fixture += 1) {
-    await handler(routeRequest(String(fixture)));
-  }
-  assert.equal(cache.size, 100);
-  assert.equal(calls, 101);
-
-  await handler(routeRequest("1"));
-  assert.equal(calls, 102);
-});
-
-test("keeps a refreshed expired cache entry when the next key triggers eviction", async () => {
-  let calls = 0;
-  let now = 0;
-  const cache = new Map();
-  const handler = createHeadToHeadGetHandler({
-    cache,
-    now: () => now,
-    apiKeyLoader: async () => "secret",
-    fetcher: async () => {
-      calls += 1;
-      return Response.json({ errors: [], response: [] });
-    },
-  });
-
-  await handler(routeRequest("1"));
-  now = 1;
-  for (let fixture = 2; fixture <= 100; fixture += 1) {
-    await handler(routeRequest(String(fixture)));
-  }
-
-  now = 1800 * 1000;
-  await handler(routeRequest("1"));
-  await handler(routeRequest("101"));
-  assert.equal((await handler(routeRequest("1"))).status, 200);
-  assert.equal(calls, 102);
+  const response = await handler(routeRequest());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("X-Cache-Status"), "refreshed");
+  assert.equal(calls, 1);
+  assert.equal(store.writes, 1);
+  assert.ok(store.entries.has("head-to-head:v1:1:2:3:2026-08-16T10:00:00+00:00"));
 });
 
 test("returns provider 429 and 502 statuses from the route", async () => {
   const rateLimited = createHeadToHeadGetHandler({
-    cache: new Map(),
+    cacheStoreLoader: async () => new MemorySharedCache(),
     apiKeyLoader: async () => "secret",
     fetcher: async () => Response.json({ errors: { rateLimit: "Too many requests" }, response: [] }),
+    token: () => "rate-owner",
+    inFlight: new Map(),
   });
   const unavailable = createHeadToHeadGetHandler({
-    cache: new Map(),
+    cacheStoreLoader: async () => new MemorySharedCache(),
     apiKeyLoader: async () => "secret",
     fetcher: async () => Response.json({ errors: [], response: [] }, { status: 500 }),
+    token: () => "error-owner",
+    inFlight: new Map(),
   });
 
   assert.equal((await rateLimited(routeRequest())).status, 429);

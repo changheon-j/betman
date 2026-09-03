@@ -30,6 +30,19 @@ export const betmanRoundSources = sqliteTable("betman_round_sources", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const apiResponseCache = sqliteTable("api_response_cache", {
+  cacheKey: text("cache_key").primaryKey(),
+  payloadJson: text("payload_json"),
+  fetchedAt: text("fetched_at"),
+  expiresAt: integer("expires_at").notNull().default(0),
+  staleUntil: integer("stale_until").notNull().default(0),
+  leaseToken: text("lease_token"),
+  leaseUntil: integer("lease_until").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  index("idx_api_response_cache_stale_until").on(table.staleUntil),
+]);
+
 export const betmanHistoryRounds = sqliteTable("betman_history_rounds", {
   roundKey: text("round_key").primaryKey(),
   gmId: text("gm_id").notNull(),
