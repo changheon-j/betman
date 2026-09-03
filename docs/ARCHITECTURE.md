@@ -60,7 +60,7 @@ HTTP 오류, API-Football `errors`, fixtures 부분 성공은 캐시에 저장�
 
 Browser는 fixtures 목록을 받은 뒤 H2H를 요청하지 않습니다. 사용자가 경기를 명시적으로 선택하면 `GET /api/head-to-head?fixture={id}&home={homeId}&away={awayId}&kickoff={ISO8601}`를 H2H, Predictions, pre-match odds와 각각 한 번 시작합니다. H2H 상태와 오류는 fixture ID 범위로 보관하므로 경기 전환이나 닫기 뒤 이전 fixture의 결과·오류를 표시하지 않으며, 취소된 요청도 화면 상태를 갱신하지 않습니다.
 
-`/api/fixtures`는 리그별 upcoming fixtures, 조건부 past fixtures, standings만 병렬로 조회합니다. cold 목록 요청은 K1 3회와 J1 3회로 총 6회이고 H2H fan-out이 없습니다. `/api/head-to-head`의 cache miss는 API-Football에 한 번 요청해 선택 kickoff 이전에 완료된 경기만 최신순 최대 10개로 반환합니다. 응답은 `fixtureId`, `fetchedAt`, `cacheSeconds: 1800`, `matches`를 포함합니다.
+`/api/fixtures`는 리그별 시즌 fixtures와 standings를 순차 조회하고, 시즌 fixtures 응답을 과거 통계와 예정 경기로 분리합니다. cold 목록 요청은 K1 2회와 J1 2회로 총 4회이고 H2H fan-out이 없습니다. `/api/head-to-head`의 cache miss는 API-Football에 한 번 요청해 선택 kickoff 이전에 완료된 경기만 최신순 최대 10개로 반환합니다. 응답은 `fixtureId`, `fetchedAt`, `cacheSeconds: 1800`, `matches`를 포함합니다.
 
 H2H 캐시는 fixture ID·home ID·away ID·kickoff 전체 조합을 키로 D1에 1,800초(30분) fresh, 정상 조회 시점부터 24시간 stale로 유지합니다. 공급자 rate limit은 자동 재시도하거나 오류로 저장하지 않습니다. stale 정상값이 없으면 429로 전달하며, UI는 맞대결 영역에만 오류를 표시하고 다른 상세 정보는 유지합니다.
 
