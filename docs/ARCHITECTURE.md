@@ -30,7 +30,13 @@ Next/Vinext routes → API-Football, Betman, Cloudflare D1
 
 `GET /api/fixtures`는 K1=`292`, J1=`98`의 메타와 리그별 `season`을 `leagues`에 항상 제공하고, 각 성공 리그의 공식 순위를 `standingsByLeague.K1` 또는 `standingsByLeague.J1`에 제공합니다. K1은 달력 연도, J1은 7월~다음 해 6월의 종료 연도 키를 사용합니다. 공통 `season` 필드는 사용하지 않습니다. 경기는 리그 구분 없이 kickoff 순으로 정렬되고 공식 순위 행은 공급자 순서를 유지합니다.
 
-각 리그 작업은 독립적으로 처리됩니다. 하나 이상 성공하면 HTTP 200과 `leagueErrors`를 반환하고, 두 리그가 모두 실패할 때만 502를 반환합니다. 클라이언트는 부분 실패 경고를 표시하면서 성공한 리그 경기 목록을 유지합니다. fixtures 결과는 10분 메모리 캐시됩니다.
+각 리그 작업은 독립적으로 처리됩니다. 하나 이상 성공하면 HTTP 200과 `leagueErrors`를 반환하고, 두 리그가 모두 실패할 때만 502를 반환합니다. 클라이언트는 부분 실패 경고를 표시하면서 성공한 리그 경기 목록을 유지합니다. 두 리그가 모두 성공한 fixtures 결과만 D1에 10분 공유 캐시하며 부분 응답은 저장하지 않습니다.
+
+## API-Football 공유 캐시
+
+`app/lib/shared-api-cache.ts`는 같은 Worker의 in-flight 요청을 합치고, `db/api-response-cache.ts`는 D1의 `api_response_cache` 테이블에서 정상 응답과 15초 갱신 임대를 관리합니다. 동일 키는 한 실행자만 공급자를 갱신하며 다른 실행자는 마지막 정상 stale 값을 즉시 사용하거나 cold 상태에서 최대 3초 동안 공유 결과를 기다립니다.
+
+HTTP 오류, API-Football `errors`, fixtures 부분 성공은 캐시에 저장하지 않습니다. 갱신 오류가 나도 stale 허용 기간 안의 마지막 정상값은 보존됩니다. D1 접근 실패는 공급자 직접 호출로 우회하지 않고 503을 반환하여 분산 중복 호출을 막습니다. 성공 응답의 `X-Cache-Status`는 `fresh`, `refreshed`, `stale`, `uncached` 중 하나입니다.
 
 ## Odds 계약
 
@@ -56,7 +62,7 @@ Browser는 fixtures 목록을 받은 뒤 H2H를 요청하지 않습니다. 사�
 
 `/api/fixtures`는 리그별 upcoming fixtures, 조건부 past fixtures, standings만 병렬로 조회합니다. cold 목록 요청은 K1 3회와 J1 3회로 총 6회이고 H2H fan-out이 없습니다. `/api/head-to-head`의 cache miss는 API-Football에 한 번 요청해 선택 kickoff 이전에 완료된 경기만 최신순 최대 10개로 반환합니다. 응답은 `fixtureId`, `fetchedAt`, `cacheSeconds: 1800`, `matches`를 포함합니다.
 
-H2H 캐시는 서버 프로세스 메모리에서 fixture ID·home ID·away ID·kickoff 전체 조합을 키로 1,800초(30분) 유지하며 최대 100개입니다. DB에 영속하지 않아 서버 재시작 시 초기화됩니다. 공급자 rate limit은 429로 전달하고 재시도하지 않으며, UI는 맞대결 영역에만 오류를 표시하고 다른 상세 정보는 유지합니다.
+H2H 캐시는 fixture ID·home ID·away ID·kickoff 전체 조합을 키로 D1에 1,800초(30분) fresh, 정상 조회 시점부터 24시간 stale로 유지합니다. 공급자 rate limit은 자동 재시도하거나 오류로 저장하지 않습니다. stale 정상값이 없으면 429로 전달하며, UI는 맞대결 영역에만 오류를 표시하고 다른 상세 정보는 유지합니다.
 
 ## Betman 매칭
 
