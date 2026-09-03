@@ -43,6 +43,13 @@
       "when": 1787756711515,
       "tag": "0005_narrow_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788415495152,
+      "tag": "0006_hard_scarecrow",
+      "breakpoints": true
     }
   ]
 }
