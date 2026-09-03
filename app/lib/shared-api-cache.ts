@@ -28,6 +28,15 @@ export class SharedCacheBusyError extends Error {
   }
 }
 
+export class SharedCacheStorageError extends Error {
+  readonly status = 503;
+
+  constructor() {
+    super("Shared cache storage is unavailable");
+    this.name = "SharedCacheStorageError";
+  }
+}
+
 type SharedCacheOptions<T> = {
   key: string;
   ttlMs: number;
@@ -148,4 +157,3 @@ export async function getOrRefreshShared<T>(options: SharedCacheOptions<T>): Pro
     if (inFlight.get(options.key) === pending) inFlight.delete(options.key);
   }
 }
-

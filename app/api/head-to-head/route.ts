@@ -7,6 +7,7 @@ import {
 } from "../../lib/head-to-head.ts";
 import {
   SharedCacheBusyError,
+  SharedCacheStorageError,
   getOrRefreshShared,
   type SharedCacheResult,
   type SharedCacheStore,
@@ -78,7 +79,7 @@ export function createHeadToHeadGetHandler(dependencies: HeadToHeadRouteDependen
     } catch (error) {
       const status = error instanceof HeadToHeadProviderError
         ? error.status
-        : error instanceof SharedCacheBusyError ? 503 : 502;
+        : error instanceof SharedCacheBusyError || error instanceof SharedCacheStorageError ? 503 : 502;
       return Response.json({ error: "Unable to load head-to-head" }, { status });
     }
   };

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPredictionsGetHandler } from "../app/api/predictions/route.ts";
+import { SharedCacheStorageError } from "../app/lib/shared-api-cache.ts";
 import { MemorySharedCache, cachedEntry } from "./helpers/memory-shared-cache.ts";
 
 const NOW = Date.parse("2026-09-03T00:00:00.000Z");
@@ -69,3 +70,19 @@ test("an expired prediction uses the last normal value when refresh is rate-limi
   assert.equal(store.writes, 0);
 });
 
+test("a shared-cache storage failure returns 503 without calling API-Football", async () => {
+  const store = new MemorySharedCache();
+  store.read = async () => { throw new SharedCacheStorageError(); };
+  let fetches = 0;
+  const handler = createPredictionsGetHandler({
+    cacheStoreLoader: async () => store,
+    apiKeyLoader: async () => "secret",
+    fetcher: async () => { fetches += 1; return Response.json({ errors: [], response: [] }); },
+    now: () => NOW,
+    inFlight: new Map(),
+  });
+
+  const response = await handler(request);
+  assert.equal(response.status, 503);
+  assert.equal(fetches, 0);
+});

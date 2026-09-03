@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createD1ApiResponseCache } from "../db/api-response-cache.ts";
-import type { StoredCacheEntry } from "../app/lib/shared-api-cache.ts";
+import { SharedCacheStorageError, type StoredCacheEntry } from "../app/lib/shared-api-cache.ts";
 
 type Row = {
   cache_key: string;
@@ -32,12 +32,14 @@ class FakeStatement {
 
 class FakeD1 {
   rows = new Map<string, Row>();
+  failRead = false;
 
   prepare(sql: string) {
     return new FakeStatement(this, sql);
   }
 
   first(statement: FakeStatement) {
+    if (this.failRead) throw new Error("raw D1 secret failure");
     assert.match(statement.sql, /api-cache-read/);
     const row = this.rows.get(String(statement.values[0]));
     return row ? structuredClone(row) : null;
@@ -154,4 +156,16 @@ test("only the matching owner token releases a lease", async () => {
   await store.releaseLease("fixtures", "owner");
   assert.equal(fake.rows.get("fixtures")?.lease_token, null);
   assert.equal(fake.rows.get("fixtures")?.lease_until, 0);
+});
+
+test("wraps raw D1 failures as a safe shared-cache storage error", async () => {
+  const fake = new FakeD1();
+  fake.failRead = true;
+
+  await assert.rejects(
+    () => createD1ApiResponseCache(asDatabase(fake)).read("fixtures"),
+    (error: unknown) => error instanceof SharedCacheStorageError
+      && error.status === 503
+      && !error.message.includes("secret"),
+  );
 });

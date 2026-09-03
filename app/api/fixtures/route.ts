@@ -9,6 +9,7 @@ import {
 import { resolveLeagueSeason, SUPPORTED_LEAGUES, type LeagueConfig } from "../../lib/leagues.ts";
 import {
   SharedCacheBusyError,
+  SharedCacheStorageError,
   getOrRefreshShared,
   type SharedCacheResult,
   type SharedCacheStore,
@@ -180,7 +181,7 @@ export function createFixturesGetHandler(dependencies: FixturesRouteDependencies
       }
       return Response.json(result.value, { headers: { "X-Cache-Status": result.cacheStatus } });
   } catch (error) {
-      const status = error instanceof SharedCacheBusyError ? 503 : 502;
+      const status = error instanceof SharedCacheBusyError || error instanceof SharedCacheStorageError ? 503 : 502;
       return Response.json({ error: errorMessage(error) }, { status });
     }
   }

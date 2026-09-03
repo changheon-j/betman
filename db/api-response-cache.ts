@@ -1,4 +1,8 @@
-import type { SharedCacheStore, StoredCacheEntry } from "../app/lib/shared-api-cache.ts";
+import {
+  SharedCacheStorageError,
+  type SharedCacheStore,
+  type StoredCacheEntry,
+} from "../app/lib/shared-api-cache.ts";
 
 type CacheRow = {
   payload_json: string | null;
@@ -13,15 +17,24 @@ function changed(result: D1Result<unknown>) {
   return Number(result.meta.changes ?? 0) === 1;
 }
 
+async function d1Operation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof SharedCacheStorageError) throw error;
+    throw new SharedCacheStorageError();
+  }
+}
+
 export function createD1ApiResponseCache(database: D1Database): SharedCacheStore {
   return {
     async read(key) {
-      const row = await database.prepare(`
+      const row = await d1Operation(() => database.prepare(`
         -- api-cache-read
         SELECT payload_json, fetched_at, expires_at, stale_until, lease_token, lease_until
         FROM api_response_cache
         WHERE cache_key = ?
-      `).bind(key).first<CacheRow>();
+      `).bind(key).first<CacheRow>());
       return row ? {
         payloadJson: row.payload_json,
         fetchedAt: row.fetched_at,
@@ -33,7 +46,7 @@ export function createD1ApiResponseCache(database: D1Database): SharedCacheStore
     },
 
     async acquireLease(key, token, now, leaseUntil) {
-      const result = await database.prepare(`
+      const result = await d1Operation(() => database.prepare(`
         -- api-cache-acquire
         INSERT INTO api_response_cache (
           cache_key, payload_json, fetched_at, expires_at, stale_until,
@@ -44,12 +57,12 @@ export function createD1ApiResponseCache(database: D1Database): SharedCacheStore
           lease_until = excluded.lease_until,
           updated_at = excluded.updated_at
         WHERE api_response_cache.lease_until <= ?
-      `).bind(key, token, leaseUntil, new Date(now).toISOString(), now).run();
+      `).bind(key, token, leaseUntil, new Date(now).toISOString(), now).run());
       return changed(result);
     },
 
     async writeSuccess(key, token, entry: StoredCacheEntry) {
-      const result = await database.prepare(`
+      const result = await d1Operation(() => database.prepare(`
         -- api-cache-write
         UPDATE api_response_cache SET
           payload_json = ?, fetched_at = ?, expires_at = ?, stale_until = ?,
@@ -63,17 +76,17 @@ export function createD1ApiResponseCache(database: D1Database): SharedCacheStore
         entry.fetchedAt,
         key,
         token,
-      ).run();
+      ).run());
       return changed(result);
     },
 
     async releaseLease(key, token) {
-      await database.prepare(`
+      await d1Operation(() => database.prepare(`
         -- api-cache-release
         UPDATE api_response_cache SET
           lease_token = NULL, lease_until = 0, updated_at = ?
         WHERE cache_key = ? AND lease_token = ?
-      `).bind(new Date().toISOString(), key, token).run();
+      `).bind(new Date().toISOString(), key, token).run());
     },
   };
 }
@@ -81,7 +94,7 @@ export function createD1ApiResponseCache(database: D1Database): SharedCacheStore
 let schemaReady: Promise<D1Database> | null = null;
 
 async function prepareCacheTable(database: D1Database) {
-  await database.batch([
+  await d1Operation(() => database.batch([
     database.prepare(`
       CREATE TABLE IF NOT EXISTS api_response_cache (
         cache_key TEXT PRIMARY KEY,
@@ -98,19 +111,20 @@ async function prepareCacheTable(database: D1Database) {
       CREATE INDEX IF NOT EXISTS idx_api_response_cache_stale_until
       ON api_response_cache(stale_until)
     `),
-  ]);
+  ]));
   return database;
 }
 
 export async function getD1ApiResponseCache(): Promise<SharedCacheStore> {
-  const { env } = await import("cloudflare:workers");
-  if (!env.DB) throw new Error("D1 binding DB is unavailable");
-  if (!schemaReady) {
-    schemaReady = prepareCacheTable(env.DB).catch((error) => {
-      schemaReady = null;
-      throw error;
-    });
-  }
-  return createD1ApiResponseCache(await schemaReady);
+  return d1Operation(async () => {
+    const { env } = await import("cloudflare:workers");
+    if (!env.DB) throw new SharedCacheStorageError();
+    if (!schemaReady) {
+      schemaReady = prepareCacheTable(env.DB).catch((error) => {
+        schemaReady = null;
+        throw error;
+      });
+    }
+    return createD1ApiResponseCache(await schemaReady);
+  });
 }
-

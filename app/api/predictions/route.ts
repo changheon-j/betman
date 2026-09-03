@@ -21,6 +21,7 @@ type ApiPredictionResponse = {
 
 import {
   SharedCacheBusyError,
+  SharedCacheStorageError,
   getOrRefreshShared,
   type SharedCacheResult,
   type SharedCacheStore,
@@ -127,7 +128,7 @@ export function createPredictionsGetHandler(dependencies: PredictionsRouteDepend
       });
       return Response.json(result.value, { headers: { "X-Cache-Status": result.cacheStatus } });
   } catch (error) {
-      const status = error instanceof SharedCacheBusyError ? 503 : 502;
+      const status = error instanceof SharedCacheBusyError || error instanceof SharedCacheStorageError ? 503 : 502;
       return Response.json({ error: error instanceof Error ? error.message : "경기 예측을 불러오지 못했습니다." }, { status });
     }
   }

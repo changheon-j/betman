@@ -5,6 +5,7 @@ import {
 } from "../../lib/pre-match-odds.ts";
 import {
   SharedCacheBusyError,
+  SharedCacheStorageError,
   getOrRefreshShared,
   type SharedCacheResult,
   type SharedCacheStore,
@@ -88,7 +89,7 @@ export function createPreMatchOddsGetHandler(dependencies: PreMatchOddsRouteDepe
       });
       return Response.json(result.value, { headers: { "X-Cache-Status": result.cacheStatus } });
   } catch (error) {
-      const status = error instanceof SharedCacheBusyError ? 503 : 502;
+      const status = error instanceof SharedCacheBusyError || error instanceof SharedCacheStorageError ? 503 : 502;
       return Response.json({ error: error instanceof Error ? error.message : "Unable to load pre-match odds" }, { status });
     }
   }
